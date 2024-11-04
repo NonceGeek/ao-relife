@@ -4,8 +4,9 @@ export const regexPatterns = {
   hrefRegex: /<a\s+[^>]*?href\s*=\s*(['"])(.*?)\1/g,
   youtubeRegex: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
 };
-export const AO_ACHIEVEMENT = 'wbIGThLriLEzpuL5yS__aba2jn0YAF471adJTrc0Pdg';
+export const AO_ACHIEVEMENT = 't5n7Op0zPQsro-NZxIuGX4izLJF5-lixZvRsO4eLZoY';
 export const AO_PET = "cO4thcoxO57AflN5hfXjce0_DydbMJclTU9kC3S75cg";
+export const AO_RELIFE = "Y2PZPXyGxSmLO-BJJsi_FSL1_mgkC2WO5LNpGa4P6zY"
 export const AO_TWITTER = "8s1ZpAx_NueKS4N2ZOMYWCkl5qVcGkgnBFSnqSVX9Fo";
 export const AO_STORY = "AAwa2zqVLSMvxOPMjhUVtPHS_SN1ObbsaY27X9OPCbw";
 export const STORY_INCOME = "LsNy8F1GSkGvE0IJ6g1RFpHHjKE6tmtXUT91WIv3PMQ";

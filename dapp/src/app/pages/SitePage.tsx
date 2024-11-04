@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import {
   getWalletAddress,
   getDataFromAO,
@@ -8,7 +9,7 @@ import {
   messageToAO,
   shortAddr,
 } from "../util/util";
-import { AO_PET } from "../util/consts";
+import { AO_PET, AO_RELIFE } from "../util/consts";
 import { Server } from "../../server/server";
 import Portrait from "../elements/Portrait";
 import { subscribe } from "../util/event";
@@ -19,7 +20,14 @@ import { BsWallet2 } from "react-icons/bs";
 import PetCard from "../elements/PetCard"; // Import the PetCard component
 
 import NavBar from "../elements/NavBar";
-import { Card, CardContent, Box, Typography, Button } from "@mui/material"; // Add this import
+import {
+  Card,
+  CardContent,
+  Box,
+  Typography,
+  Button,
+  Container,
+} from "@mui/material"; // Add this import
 
 // Add this new import for the countdown timer
 import Countdown, { CountdownRenderProps } from "react-countdown";
@@ -49,6 +57,8 @@ interface SitePageState {
   description: string;
   pet: Pet | null; // Allow pet to be null
   showMessageBox: boolean; // New state variable for message box
+  generateStatus: string; // New state variable for generation status
+  generateStatusHistory: string[]; // New state variable for status history
 }
 
 class SitePage extends React.Component<{}, SitePageState> {
@@ -68,6 +78,8 @@ class SitePage extends React.Component<{}, SitePageState> {
       message: "",
       pet: null, // Initialize pet as null
       showMessageBox: false, // Initialize showMessageBox as false
+      generateStatus: "", // Initialize generateStatus as an empty string
+      generateStatusHistory: [], // Initialize as an empty array
     };
 
     subscribe("wallet-events", () => {
@@ -79,6 +91,7 @@ class SitePage extends React.Component<{}, SitePageState> {
     this.handleClick = this.handleClick.bind(this);
     this.handleFeed = this.handleFeed.bind(this); // Bind handleFeed
     this.closeMessageBox = this.closeMessageBox.bind(this); // Bind closeMessageBox
+    this.handleGenerateOnChainLife = this.handleGenerateOnChainLife.bind(this); // Bind the new method
   }
 
   handleNameChange(event: { target: { value: any } }) {
@@ -143,7 +156,7 @@ class SitePage extends React.Component<{}, SitePageState> {
   }
 
   async getCount() {
-    let replies = await getDataFromAO(AO_PET, "getCount");
+    let replies = await getDataFromAO(AO_RELIFE, "getCount");
     console.log("get count:", replies);
     this.setState({ count: replies }); // Update state with the count
   }
@@ -208,22 +221,144 @@ class SitePage extends React.Component<{}, SitePageState> {
     return !name || !description || !address;
   }
 
+  async initAcct() {
+    console.log("Initializing account...");
+    try {
+      let response = await messageToAO(AO_RELIFE, { address: this.state.address }, "initAcct");
+      console.log("Account initialized:", response);
+    } catch (error) {
+      console.error("Error initializing account:", error);
+    }
+  }
+
+  async initLife(x: number, y: number, z: number) {
+    console.log("Initializing life...");
+    try {
+      let response = await messageToAO(AO_RELIFE, { address: this.state.address, x: x, y: y, z: z }, "initLife");
+      console.log("Life initialized:", response);
+    } catch (error) {
+      console.error("Error initializing life:", error);
+    }
+  }
+
+  async updateLife() {
+    console.log("Updating life...");
+    try {
+      let response = await messageToAO(AO_RELIFE, { address: this.state.address }, "updateLife");
+      console.log("Life updated:", response);
+    } catch (error) {
+      console.error("Error updating life:", error);
+    }
+  }
+
+  async getLife() {
+    let replies = await getDataFromAO(AO_RELIFE, "getLifes", { address: this.state.address });
+    console.log("getLifes:", replies);
+    return replies;
+  }
+
+  async handleGenerateOnChainLife() {
+    console.log("Generating a series of on-chain-life...");
+    await this.initAcct();
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay 1 second
+
+    const { type, level } = this.state.pet || {};
+    const x = 5 * ((type || 0) % 100 + (level || 0) % 100);
+    const y = 5 * (((type || 0) + 68) % 100 + ((level || 0) + 33) % 100);
+    const z = Math.floor(Math.random() * 1001) - 500; // Random between [-500, 500]
+
+    this.setState((prevState) => ({
+      generateStatus: "Your birth point is: " + x + ", " + y + ", " + z,
+      generateStatusHistory: [...prevState.generateStatusHistory, "Your birth point is: " + x + ", " + y + ", " + z]
+    }));
+    await this.initLife(x, y, z);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay 1 second
+
+    for (let i = 0; i < 10; i++) {
+      await this.updateLife();
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Delay 2 seconds
+
+      // Fetch the latest life data
+      const lifeData = await this.getLife();
+      if (lifeData && lifeData.length > 0) {
+        console.log("lifeData:", lifeData[lifeData.length - 1]);
+        const lifeEventsString = lifeData[lifeData.length - 1].lifeEvents;
+        try {
+          // Try to parse the events as JSON
+          const lifeEvents = JSON.parse(lifeEventsString);
+          console.log("events:", lifeEvents);
+          
+          const latestEvent = lifeEvents[lifeEvents.length - 1];
+          const eventNum = parseInt(latestEvent, 16) % 10 + 1; // Convert hex to decimal, mod 10, add 1
+
+          console.log(`Event number for step ${i + 1}:`, eventNum);
+
+          // Construct the URL with the event number
+          const eventUrl = `https://ao-relife.deno.dev/event?unique_id=${i+1}&event_num=${eventNum}`;
+          console.log(`Event URL for step ${i + 1}:`, eventUrl);
+
+          // Fetch the event data from the URL
+          try {
+            const response = await fetch(eventUrl);
+            const data = await response.json();
+            console.log(`Event for step ${i + 1}:`, data.event);
+            
+            // KEEP THIS LINE! DONT DELETE IT!
+            // TODO: make sure why it not working:Split the event string into CN and EN parts
+            // const [cnPart, enPart] = data.event.split(/\n/);
+            // console.log("cnPart:", cnPart);
+            // console.log("enPart:", enPart);
+            // Update the state with the split event data
+
+            if (data.event.includes("#DEAD")) {
+              this.setState((prevState) => ({
+                generateStatus: data.event.replace('#DEAD', '') || '',
+                generateStatusHistory: [...prevState.generateStatusHistory, data.event.replace('#DEAD', '') || '']
+              }));
+              break;
+            }
+            this.setState((prevState) => ({
+              generateStatus: data.event.replace('#DEAD', '') || '',
+              generateStatusHistory: [...prevState.generateStatusHistory, data.event.replace('#DEAD', '') || '']
+            }));
+          } catch (error) {
+            console.error(`Error fetching event for step ${i + 1}:`, error);
+          }
+        } catch (error) {
+          console.error("Error parsing life events JSON:", error);
+          // Fallback to the original hex parsing if JSON fails
+          const lifeEvents = lifeEventsString.match(/.{1,64}/g) || [];
+          console.log("events (fallback hex parsing):", lifeEvents);
+          
+          const latestEvent = lifeEvents[lifeEvents.length - 1];
+          const eventNum = parseInt(latestEvent, 16) % 10 + 1; // Convert hex to decimal, mod 10, add 1
+
+          console.log(`Event number for step ${i + 1}:`, eventNum);
+
+          // Construct the URL with the event number
+          const eventUrl = `https://ao-relife.deno.dev/event?unique_id=${i+1}&event_num=${eventNum}`;
+          console.log(`Event URL for step ${i + 1}:`, eventUrl);
+
+          // Fetch the event data from the URL
+          try {
+            const response = await fetch(eventUrl);
+            const data = await response.json();
+            console.log(`Event for step ${i + 1}:`, data.event);
+          } catch (error) {
+            console.error(`Error fetching event for step ${i + 1}:`, error);
+          }
+        }
+      }
+    }
+
+    this.setState((prevState) => ({
+      generateStatus: "You have generated a complete on-chain life.",
+      generateStatusHistory: [...prevState.generateStatusHistory, "You have generated a complete on-chain life."]
+    }));
+  }
+
   render() {
     let shortAddress = shortAddr(this.state.address, 4);
-    const upper = `
-    _____     __     __    __     ______     __   __     ______     __     ______     __   __    
-    /\\  __-.  /\\ \\   /\\ "-./  \\   /\\  ___\\   /\\ "-.\\ \\   /\\  ___\\   /\\ \\   /\\  __ \\   /\\ "-.\\ \\   
-    \\ \\ \\/\\ \\ \\ \\ \\  \\ \\ \\-./\\ \\  \\ \\  __\\   \\ \\ \\-.  \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\/\\ \\  \\ \\ \\-.  \\  
-     \\ \\____-  \\ \\_\\  \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\ \\_\\\\"\\_\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\  \\ \\_\\\\"\\_\\ 
-      \\/____/   \\/_/   \\/_/  \\/_/   \\/_____/   \\/_/ \\/_/   \\/_____/   \\/_/   \\/_____/   \\/_/ \\/_/ 
-                                                                                                  
-                                         __         __     ______   ______                        
-                                        /\\ \\       /\\ \\   /\\  ___\\ /\\  ___\\                       
-                                        \\ \\ \\____  \\ \\ \\  \\ \\  __\\ \\ \\  __\\                       
-                                         \\ \\_____\\  \\ \\_\\  \\ \\_\\    \\ \\_____\\                     
-                                          \\/_____/   \\/_/   \\/_/     \\/_____/                     
-                                                                                                  
-    `;
     const codeStyle = {
       lineHeight: "1.2", // Adjust the line height to reduce spacing
       padding: "10px", // Adjust padding as needed
@@ -308,6 +443,7 @@ class SitePage extends React.Component<{}, SitePageState> {
             <NavBar address={this.state.address} />
           </div>
           <ReactMarkdown
+            remarkPlugins={[remarkBreaks]}
             components={{
               code({ node, className, children, ...props }) {
                 return (
@@ -323,138 +459,59 @@ class SitePage extends React.Component<{}, SitePageState> {
                   </pre>
                 );
               },
-            }}
-          >
-            {upper}
-          </ReactMarkdown>
-
-          {/* New card implementation with countdown timer */}
-          <Card
-            sx={{
-              maxWidth: 600,
-              margin: "20px auto",
-              backgroundColor: "#e6f3ff",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-              borderRadius: "12px",
-            }}
-          >
-            <CardContent>
-              <Typography
-                variant="h4"
-                sx={{ textAlign: "center", mb: 2, color: "#1a237e" }}
-              >
-                🔥 Newest Game 🔥
-              </Typography>
-              <Typography
-                variant="h5"
-                sx={{
-                  textAlign: "center",
-                  mb: 2,
-                  fontWeight: "bold",
-                  color: "#303f9f",
-                }}
-              >
-                「Yalla Jamel」
-              </Typography>
-
-              <Typography
-                sx={{
-                  textAlign: "center",
-                  mb: 3,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <a
-                  href="https://x.com/YallaJamel?t=KhNzhipROXdlJLapAPV55g&s=09"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: "#1DA1F2",
-                    textDecoration: "none",
-                    fontWeight: "bold",
-                  }}
-                >
-                  <FaTwitter
-                    color="#1DA1F2"
-                    size={24}
-                    style={{ marginRight: "8px" }}
-                  />
-                  @YallaJamel
-                </a>
-              </Typography>
-              <Typography sx={{ textAlign: "center", mb: 3 }}>
-                The first match-3 game on AO is coming!
-              </Typography>
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ textAlign: "center", mb: 1, fontWeight: "bold" }}
-                >
-                  Alpha Version（测试版）: 
-                </Typography>
-                
-                {/* <Countdown date={targetDate} renderer={renderer} /> */}
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-                <Typography>👇👇</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
-                  <Typography>👉👉</Typography>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    href="https://t.me/Yalla_Jamel_Bot/camel_app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{
-                      backgroundColor: '#4a90e2',
-                      '&:hover': {
-                        backgroundColor: '#3a78c2',
-                      },
-                      mx: 1,
+              h3({ node, className, children, ...props }) {
+                return (
+                  <h3
+                    style={{
+                      color: "#1a237e",
+                      textAlign: "center",
+                      fontSize: "1.5rem", // Adjust the font size as needed
                     }}
+                    {...props}
                   >
-                    Launch App
-                  </Button>
-                  <Typography>👈👈</Typography>
-                </Box>
-                <Typography>☝️☝️</Typography>
-              </Box>
-              <iframe
-                src="https://camel-vox.vercel.app/"
-                title="Camel Vox"
-                width="100%"
-                height="400px"
-                style={{ border: "none", borderRadius: "8px" }}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Existing content */}
-          <center>
-            <p>The 1st Pet Game on AO which is </p>
-          </center>
-          <center>
-            <p>
-              strongly AI powered, Community GC(Generate Content), UserGC,
-              DeveloperGC and AIGC ฅ^•ﻌ•^ฅ。
-            </p>
-          </center>
-          <center>
-            <p>首个 AO 上的宠物游戏 —— </p>
-          </center>
-          <center>
-            <p>
-              强 AI 支持, 社区创造内容, 用户创造内容, 开发者创造内容与 AI
-              创造内容 ฅ^•ﻌ•^ฅ。
-            </p>
-          </center>
+                    {children}
+                  </h3>
+                );
+              },
+            }}
+          >
+            ### 人生重开模拟器 Relife
+          </ReactMarkdown>
           <br></br>
           <center>
-            <p>Pet supplied totally:</p>
+            放置类游戏！基于
+            <a
+              href="https://ar.dimension-life.rootmud.xyz/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: "underline", color: "blue" }}
+            >
+              「dimensionLife」
+            </a>
+            体验你的 AO-on-chain Life!
+          </center>
+          <center>
+            Idle game! Based on
+            <a
+              href="https://ar.dimension-life.rootmud.xyz/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: "underline", color: "blue" }}
+            >
+              "dimensionLife"
+            </a>
+            Try your AO-on-chain Life!
+          </center>
+
+          {/* Existing content */}
+          <br></br>
+          <center>
             <p>
-              <b>&lt;{this.state.count}&gt;</b>
+              👇 先来领取你的 dimensionLife，本游戏算法基于 dimensionLife 👇{" "}
+            </p>
+            <p>
+              👇 First, claim your dimensionLife. This game's algorithm is based
+              on dimensionLife 👇{" "}
             </p>
           </center>
           <br></br>
@@ -507,6 +564,49 @@ class SitePage extends React.Component<{}, SitePageState> {
               onFeed={this.handleFeed} // Pass handleFeed as prop
             />
           )}
+          
+          <center>
+            <p>Onchain life totally:</p>
+            <p>
+              <b>&lt;{this.state.count}&gt;</b>
+            </p>
+          </center>
+          <br></br>
+          {this.state.pet && (
+            <div className="button-container">
+              <button
+                onClick={this.handleGenerateOnChainLife}
+                style={{
+                  backgroundColor: "#4a90e2",
+                  color: "white",
+                  cursor: "pointer",
+                  width: "300px", // Set the desired width
+                }}
+              >
+                Generate my On-Chain Life...
+              </button>
+            </div>
+          )}
+          <div style={{ textAlign: "center" }}>
+            {this.state.generateStatus && ( // Conditionally render the status message
+              <div>
+                <p>{this.state.generateStatus}</p>
+              </div>
+            )}
+          </div>
+          <br></br>
+          {this.state.generateStatusHistory.length > 0 && (
+            <div className="life-card-container" style={{ textAlign: "center" }}>
+              <h3>Life Generation History</h3>
+              {this.state.generateStatusHistory.map((status, index) => (
+                <div key={index} className="life-card">
+                  {status.split('\n').map((line, lineIndex) => (
+                    <p key={lineIndex}>{line}</p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
           <br></br>
           <div className="button-container">
             <a
@@ -538,6 +638,7 @@ class SitePage extends React.Component<{}, SitePageState> {
               <button onClick={this.closeMessageBox}>Close</button>
             </div>
           )} */}
+
         </div>
 
         {/* FOR MOBILE */}

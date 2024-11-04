@@ -1,5 +1,4 @@
--- TODO: avoid the totally same achievement by title.
--- ProcessId: [TODO]
+-- ProcessId:  TODO
 local json = require("json")
 local sqlite3 = require("lsqlite3")
 local admin = "wbIGThLriLEzpuL5yS__aba2jn0YAF471adJTrc0Pdg"
@@ -8,20 +7,22 @@ DB = DB or sqlite3.open_memory()
 
 -- Create table for achievements with unique constraint on address
 DB:exec [[
-  CREATE TABLE IF NOT EXISTS achievement_1_kv (
+  CREATE TABLE IF NOT EXISTS acct (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    address TEXT UNIQUE,
-    data TEXT,
+    address TEXT,
+    lifeCount INT,
     lastUpdated INT
   );
 ]]
 
 DB:exec [[
-  CREATE TABLE IF NOT EXISTS whitelist (
+  CREATE TABLE IF NOT EXISTS life (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE,
-    description TEXT,
-    process_id TEXT
+    acct_id INTEGER,
+    lifeEvents TEXT,
+    lifeNumber INT,
+    lastUpdated INT,
+    FOREIGN KEY(acct_id) REFERENCES acct(id)
   );
 ]]
 

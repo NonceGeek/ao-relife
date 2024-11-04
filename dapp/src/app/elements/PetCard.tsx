@@ -111,6 +111,7 @@ class PetCard extends React.Component<PetCardProps, PetCardState> {
         <p>{description}</p>
         <p><b>Level: </b>{level}</p>
         <p><b>Type: </b>&nbsp;{symbol}</p>
+        <br></br>
         <button 
           onClick={this.handleFeed} 
           disabled={!isFeedingEnabled}
