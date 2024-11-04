@@ -309,17 +309,16 @@ class SitePage extends React.Component<{}, SitePageState> {
             // console.log("cnPart:", cnPart);
             // console.log("enPart:", enPart);
             // Update the state with the split event data
-
             if (data.event.includes("#DEAD")) {
               this.setState((prevState) => ({
-                generateStatus: data.event.replace('#DEAD', '') || '',
-                generateStatusHistory: [...prevState.generateStatusHistory, data.event.replace('#DEAD', '') || '']
+                generateStatus: data.event.replaceAll('#DEAD', '') || '',
+                generateStatusHistory: [...prevState.generateStatusHistory, data.event.replaceAll('#DEAD', '') || '']
               }));
               break;
             }
             this.setState((prevState) => ({
-              generateStatus: data.event.replace('#DEAD', '') || '',
-              generateStatusHistory: [...prevState.generateStatusHistory, data.event.replace('#DEAD', '') || '']
+              generateStatus: data.event.replaceAll('#DEAD', '') || '',
+              generateStatusHistory: [...prevState.generateStatusHistory, data.event.replaceAll('#DEAD', '') || '']
             }));
           } catch (error) {
             console.error(`Error fetching event for step ${i + 1}:`, error);
@@ -590,7 +589,7 @@ class SitePage extends React.Component<{}, SitePageState> {
           <div style={{ textAlign: "center" }}>
             {this.state.generateStatus && ( // Conditionally render the status message
               <div>
-                <p>{this.state.generateStatus}</p>
+                <p> 👉 {this.state.generateStatus} 👈 </p>
               </div>
             )}
           </div>
@@ -610,7 +609,7 @@ class SitePage extends React.Component<{}, SitePageState> {
           <br></br>
           <div className="button-container">
             <a
-              href="https://x.com/0xleeduckgo"
+              href="https://x.com/intent/follow?screen_name=0xleeduckgo"
               target="_blank"
               rel="noreferrer"
             >
