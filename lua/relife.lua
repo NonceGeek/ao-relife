@@ -3,6 +3,7 @@ local json = require("json")
 local sqlite3 = require("lsqlite3")
 
 DL_TARGET = 'cO4thcoxO57AflN5hfXjce0_DydbMJclTU9kC3S75cg'
+ACHIEVEMENT_TARGET = 't5n7Op0zPQsro-NZxIuGX4izLJF5-lixZvRsO4eLZoY'
 
 DB = DB or sqlite3.open_memory()
 
@@ -248,6 +249,19 @@ local function initLife(msg, data, timestamp)
     -- HINTS: DO NOT REMOVE THIS LINE
     -- lua only runs the func that defined before!
     updateLifeCount(acct[1].id)
+
+    Send({
+        Target = ACHIEVEMENT_TARGET,
+        Tags = {
+            Action = 'AppendAchievement'
+        },
+        Data = json.encode({
+            title = '1st life',
+            data = 'got ur 1st ao-life!',
+            proven = '',
+            address = address
+        })
+    })
 end
 
 
@@ -328,6 +342,7 @@ Handlers.add("getAcct", Handlers.utils.hasMatchingTag("Action", "getAcct"), func
     Handlers.utils.reply(acctJson)(msg)
 end)
 
+-- Send({ Target = ao.id, Action = "getAccts", Data = '{"address": "0x1"}' })
 Handlers.add("getAccts", Handlers.utils.hasMatchingTag("Action", "getAccts"), function(msg)
     Handlers.utils.reply("AHA")(msg)
 end)
@@ -376,6 +391,7 @@ Handlers.add("updateLife", Handlers.utils.hasMatchingTag("Action", "updateLife")
 end)
 
 -- Add getCount Handler to get the count of all pets
+-- Send({ Target = ao.id, Action = "getCount", Data = '{"address": "0x1"}' })
 Handlers.add(
   "getCount",
   Handlers.utils.hasMatchingTag("Action", "getCount"),
