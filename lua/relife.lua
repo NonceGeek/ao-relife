@@ -79,12 +79,28 @@ local function getLatestLife(data)
     local dataJson = json.decode(data)
     local address = dataJson.address
     local acct = getAcct(data)
+
+    -- Check if account exists
+    if #acct == 0 then
+        print("Error: Account does not exist")
+        Send({ Target = msg.From, Data = "Error: Account does not exist" })
+        return
+    end
+
     local stmt = DB:prepare [[
-        SELECT * FROM life WHERE lifeNumber = :lifeNumber;
+        SELECT * FROM life 
+        WHERE acct_id = :acct_id 
+        ORDER BY id DESC 
+        LIMIT 1;
     ]]
 
+    if not stmt then
+        error("Failed to prepare SQL statement: " .. DB:errmsg())
+    end
+
+    -- Bind the account ID to the statement
     stmt:bind_names({
-        lifeNumber = acct[1].lifeCount
+        acct_id = acct[1].id
     })
 
     local rows = query(stmt)
@@ -135,7 +151,7 @@ local function getLifes(data)
     -- Check if account exists
     if #acct == 0 then
         print("Error: Account does not exist")
-        Handlers.utils.reply("Error: Account does not exist")
+        Send({ Target = msg.From, Data = "Error: Account does not exist" })
         return
     end
 
@@ -176,10 +192,8 @@ local function updateLifeCount(acctId)
     if updateResult ~= sqlite3.DONE then
         local errorMsg = "Error: Failed to update life count"
         print(errorMsg)
-        -- Handlers.utils.reply(errorMsg)(msg)
     else
         print('Life count updated!')
-        -- Handlers.utils.reply("Life initialized and count updated!")(msg)
     end
 
     stmt:reset()
@@ -189,6 +203,16 @@ end
 
 -- Function to initLife
 local function initLife(msg, data, timestamp)
+    -- Update Level here.
+    Send({
+        Target = DL_TARGET,
+        Tags = {
+            Action = 'updateLevel'
+        },
+        Data = json.encode({
+            address = address
+        })
+    })
     -- Decode the JSON data
     local dataJson = json.decode(data)
     local address = dataJson.address
@@ -206,7 +230,7 @@ local function initLife(msg, data, timestamp)
     if #acct == 0 then
         local errorMsg = "Error: Account does not exist"
         print(errorMsg)
-        Handlers.utils.reply(errorMsg)(msg)
+        Send({ Target = msg.From, Data = errorMsg })
         return
     end
 
@@ -238,7 +262,6 @@ local function initLife(msg, data, timestamp)
     if result ~= sqlite3.DONE then
         local errorMsg = "Error: Failed to add life event"
         print(errorMsg)
-        -- Handlers.utils.reply(errorMsg)(msg)
     else
         print('Life event added!')
         -- Call the new function to update lifeCount
@@ -267,7 +290,7 @@ end
 
 
 -- Function to initAcct
-local function initAcct(data, timestamp)
+local function initAcct(msg, data, timestamp)
     -- Decode the JSON data
     local dataJson = json.decode(data)
     local address = dataJson.address
@@ -289,7 +312,7 @@ local function initAcct(data, timestamp)
 
     if existingAcct then
         print("Error: Address already exists")
-        Handlers.utils.reply("Error: Address already exists")
+        Send({ Target = msg.From, Data = "Error: Address already exists" })
         return
     end
 
@@ -314,10 +337,10 @@ local function initAcct(data, timestamp)
     local result = stmt:step()
     if result ~= sqlite3.DONE then
         print("Error: Failed to add account")
-        Handlers.utils.reply("Error: Failed to add account")
+        Send({ Target = msg.From, Data = "Error: Failed to add account" })
     else
         print('Account Added!')
-        Handlers.utils.reply("Account Added!")
+        Send({ Target = msg.From, Data = "Account Added!" })
     end
 
     -- Reset and finalize the statements
@@ -330,7 +353,7 @@ end
 -- Send({ Target = ao.id, Action = "initAcct", Data = '{"address": "0x1"}' })
 -- Add initAcct Handler
 Handlers.add("initAcct", Handlers.utils.hasMatchingTag("Action", "initAcct"), function(msg)
-    initAcct(msg.Data, msg.Timestamp)
+    initAcct(msg, msg.Data, msg.Timestamp)
 end)
 
 --  Send({ Target = ao.id, Action = "getAcct", Data = '{"address": "0x1"}' })
@@ -339,12 +362,28 @@ Handlers.add("getAcct", Handlers.utils.hasMatchingTag("Action", "getAcct"), func
     local acct = getAcct(msg.Data)
     local acctJson = json.encode(acct)
     print(acctJson)
-    Handlers.utils.reply(acctJson)(msg)
+    Send({ Target = msg.From, Data = acctJson })
+end)
+
+Handlers.add("ping",
+  { Action = "ping" },
+  function (msg)
+    print('ping')
+    Send({ Target = msg.From, Data = "pong" })
+  end
+)
+
+Handlers.add("pingping", Handlers.utils.hasMatchingTag("Action", "pingping"), function(msg)
+    Send({ Target = msg.From, Data = "pong" })
+end)
+
+Handlers.add("pingpingping", Handlers.utils.hasMatchingTag("Action", "pingpingping"), function(msg)
+    Send({ Target = msg.From, Data = "pingpingping" })
 end)
 
 -- Send({ Target = ao.id, Action = "getAccts", Data = '{"address": "0x1"}' })
 Handlers.add("getAccts", Handlers.utils.hasMatchingTag("Action", "getAccts"), function(msg)
-    Handlers.utils.reply("AHA")(msg)
+    Send({ Target = msg.From, Data = "pong" })
 end)
 
 Handlers.add("initLife", Handlers.utils.hasMatchingTag("Action", "initLife"), function(msg)
@@ -356,11 +395,17 @@ Handlers.add("getLifes", Handlers.utils.hasMatchingTag("Action", "getLifes"), fu
     local lifes = getLifes(msg.Data)
     local lifesJson = json.encode(lifes)
     print(lifesJson)
-    Handlers.utils.reply(lifesJson)(msg)
+    Send({ Target = msg.From, Data = lifesJson })
 end)
 
+Handlers.add("getLatestLife", Handlers.utils.hasMatchingTag("Action", "getLatestLife"), function(msg)
+    local life = getLatestLife(msg.Data)
+    local lifeJson = json.encode(life)
+    print(lifeJson)
+    Send({ Target = msg.From, Data = lifeJson })
+end)
 
--- Send({ Target = ao.id, Action = "getLifes", Data = '{"address": "0x1"}' })
+-- Send({ Target = ao.id, Action = "updateLife", Data = '{"address": "0x1"}' })
 Handlers.add("updateLife", Handlers.utils.hasMatchingTag("Action", "updateLife"), function(msg)
 
     local dataJson = json.decode(msg.Data)
@@ -368,8 +413,10 @@ Handlers.add("updateLife", Handlers.utils.hasMatchingTag("Action", "updateLife")
 
     local life = getLatestLife(msg.Data)
     local lifeJson = json.encode(life)
+    print("lifeJson:")
     print(lifeJson)
     local randomHex = generateRandomHex(2)
+    print(randomHex)
     updateLifeWithNewEvent(life[1].id, randomHex)
 
     local lifeUpdated = getLatestLife(msg.Data)
@@ -377,17 +424,18 @@ Handlers.add("updateLife", Handlers.utils.hasMatchingTag("Action", "updateLife")
     print(lifeUpdatedJson)
     -- Send to DL after updateLife
     print(life[1].address)
-    Send({
-        Target = DL_TARGET,
-        Tags = {
-            Action = 'updateLevel'
-        },
-        Data = json.encode({
-            address = address
-        })
-    })
 
-    Handlers.utils.reply(lifeUpdatedJson)(msg)
+    -- Send({
+    --     Target = DL_TARGET,
+    --     Tags = {
+    --         Action = 'updateLevel'
+    --     },
+    --     Data = json.encode({
+    --         address = address
+    --     })
+    -- })
+
+    Send({ Target = msg.From, Data = lifeUpdatedJson })
 end)
 
 -- Add getCount Handler to get the count of all pets
@@ -406,6 +454,6 @@ Handlers.add(
   
     local rows = query(stmt)
     print(rows[1].count)
-    Handlers.utils.reply(tostring(rows[1].count))(msg)
+    Send({ Target = msg.From, Data = tostring(rows[1].count) })
   end
 )
